@@ -1,0 +1,169 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>pl.inovatica</groupId>
+	<artifactId>cubes</artifactId>
+	<version>1.0</version>
+	<name>Programiaki - cubes</name>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.build.timestamp.format>dd-MM-yyyy</maven.build.timestamp.format>
+		
+		<!-- must be empty for main cube -->
+		<cube.command></cube.command>
+
+		<!-- jar parameters -->
+		<main.class>pl.inovatica.cubes.CubesApplication</main.class>
+
+		<!-- raspberry pi parameters -->
+		<pi.host></pi.host>
+		
+		<!-- 
+		pi.host=192.168.2.162 wifi inovatica
+		pi.host2=192.168.2.203 
+		pi.host3=192.168.2.136 
+		 -->
+		
+		<pi.user>pi</pi.user>
+		<pi.password>raspberry</pi.password>
+		<pi.deployDirectory>/home/pi/java</pi.deployDirectory>
+
+		<pi.port>22</pi.port>
+	</properties>
+
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.7</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<version>1.11</version>
+		</dependency>
+		<dependency>
+			<groupId>com.pi4j</groupId>
+			<artifactId>pi4j-core</artifactId>
+			<version>1.2</version>
+		</dependency>
+	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>jar-with-dependencies</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<!-- create jar with dependencies -->
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>${main.class}</mainClass>
+								</manifest>
+								<manifestEntries>
+									<date>${maven.build.timestamp}</date>
+									<version>${project.version}</version>
+									<command>${cube.command}</command>
+								</manifestEntries>
+							</archive>
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<!-- <finalName>${project.artifactId}-${project.version}-executable</finalName> -->
+							<!-- <appendAssemblyId>false</appendAssemblyId> -->
+						</configuration>
+						<executions>
+							<execution>
+								<id>make-assembly</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-report-plugin</artifactId>
+						<version>2.19.1</version>
+					</plugin>
+
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>copy-to-pi</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<!-- deploy file to raspberry pi -->
+					<!-- https://stackoverflow.com/questions/35148025/how-to-deploy-a-jar-onto-raspberry-pi-2-using-maven-plugin -->
+					<!-- http://artem.gratchev.com/2015/03/java-application-jar-raspberry-pi-maven-eclipse/ -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>1.8</version>
+						<executions>
+							<execution>
+								<phase>install</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<!-- <echo message="Shutting down remote application" /> <sshexec 
+											host="${pi.host}" port="${pi.port}" username="${pi.user}" password="${pi.password}" 
+											trust="true" failonerror="false" verbose="true" command="pkill java" /> -->
+
+										<echo
+											message="Ensuring the target directory exists on the Raspberry Pi" />
+										<sshexec host="${pi.host}" port="${pi.port}" username="${pi.user}"
+											password="${pi.password}" trust="true" failonerror="false"
+											verbose="true" command="mkdir --parents ${pi.deployDirectory}" />
+										<echo message="Copying the JAR file to the Raspberry" />
+										<scp
+											file="${project.build.directory}/${project.build.finalName}-jar-with-dependencies.jar"
+											todir="${pi.user}:${pi.password}@${pi.host}:${pi.deployDirectory}"
+											port="${pi.port}" trust="true" verbose="true" failonerror="true">
+										</scp>
+
+										<!-- <echo message="Running the JAR file on the Raspberry Pi" /> 
+											<sshexec host="${pi.host}" port="${pi.port}" username="${pi.user}" password="${pi.password}" 
+											trust="true" failonerror="false" verbose="true" command="export DISPLAY=:0.0;java 
+											-jar ${pi.deployDirectory}/${project.build.finalName}-jar-with-dependencies.jar 
+											>/dev/null 2>&amp;1 &amp; echo $!" /> -->
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+						<dependencies>
+							<dependency>
+								<groupId>org.apache.ant</groupId>
+								<artifactId>ant-jsch</artifactId>
+								<version>1.9.6</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+</project>

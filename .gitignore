@@ -1,0 +1,7 @@
+/target/*
+/download/*
+/.settings/*
+log4j-application.log
+.classpath
+.project
+/target/
